@@ -69,6 +69,14 @@ impl TscnHelper {
         let cmd_data: Vec<&str> = line.split("=").collect();
 
         let lhs = cmd_data[0].trim();
+
+        if cmd_data.len() < 2 || lhs == "__meta__" {
+            return Command {
+                lhs: "",
+                rhs: VarType::None(""),
+            };
+        }
+
         let rhs_data = cmd_data[1].trim();
 
         let rhs: VarType = if rhs_data.check_borders('"', '"') {
