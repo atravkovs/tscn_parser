@@ -1,4 +1,7 @@
 use crate::str_helper::StrHelper;
+
+use fletcher::fletcher16::Fletcher16;
+use indexmap::IndexMap;
 use regex::Regex;
 
 use nalgebra::Vector2;
@@ -108,7 +111,7 @@ impl TscnHelper {
         } else if let Ok(fl) = rhs_data.parse::<f32>() {
             VarType::Float(fl)
         } else {
-            VarType::None(rhs_data)
+            VarType::None("")
         };
 
         Command { lhs, rhs }
@@ -120,6 +123,23 @@ impl TscnHelper {
             "node" => Some(NodeType::Node(Self::get_node(attributes))),
             _ => None,
         }
+    }
+
+    pub fn get_path_hash(ctx: &IndexMap<&str, usize>) -> u16 {
+        let mut checksum = Fletcher16::new();
+        let mut path = "/root/root".to_string();
+
+        for key in ctx.keys() {
+            if key == &"." {
+                continue;
+            }
+
+            path.push_str(&format!("/{}", key));
+        }
+
+        checksum.update(&path.as_bytes());
+
+        checksum.value()
     }
 
     fn get_node<'a>(attributes: Vec<&'a str>) -> Node<'a> {

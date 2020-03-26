@@ -18,6 +18,7 @@ pub struct SubResourceEntry<'a> {
 
 #[derive(Debug, Clone)]
 pub struct NodeEntry<'a> {
+    pub uuid: u16,
     pub level: usize,
     pub name: &'a str,
     pub rtype: &'a str,
@@ -35,6 +36,7 @@ pub struct Tscn<'a> {
 impl<'a> Default for NodeEntry<'a> {
     fn default() -> Self {
         NodeEntry {
+            uuid: 0,
             name: "",
             level: 0,
             rtype: "",
@@ -111,6 +113,7 @@ pub fn parse_tscn<'a>(tscn: &'a str) -> Tscn<'a> {
                                 .push(node_id);
 
                             NodeEntry {
+                                uuid: TscnHelper::get_path_hash(&ctx),
                                 level: level + 1,
                                 name: node.name,
                                 rtype: node.rtype,
