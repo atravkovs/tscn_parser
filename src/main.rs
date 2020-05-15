@@ -5,7 +5,8 @@ use ::tscn_parser::parse_tscn;
 
 fn main() {
     println!("Reading available scenes...");
-    let scenes = parse("../client/Scenes/*.tscn").expect("Error reading path");
+    let scenes =
+        parse("../game/client/common-assets/Characters/*.tscn").expect("Error reading path");
 
     for scene in scenes {
         let tscn = parse_tscn(&scene);

@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
 
+use crate::tscn_helper::Node;
 use indexmap::IndexMap;
 use std::collections::HashMap;
 
@@ -11,35 +12,35 @@ pub mod str_helper;
 pub mod tscn_helper;
 
 #[derive(Debug, Clone)]
-pub struct SubResourceEntry<'a> {
-    pub rtype: &'a str,
-    pub properties: HashMap<&'a str, VarType<'a>>,
+pub struct SubResourceEntry {
+    pub rtype: String,
+    pub properties: HashMap<String, VarType>,
 }
 
 #[derive(Debug, Clone)]
-pub struct NodeEntry<'a> {
+pub struct NodeEntry {
     pub uuid: u16,
     pub level: usize,
-    pub name: &'a str,
-    pub rtype: &'a str,
+    pub name: String,
+    pub rtype: String,
     pub parent_id: usize,
-    pub properties: HashMap<&'a str, VarType<'a>>,
+    pub properties: HashMap<String, VarType>,
     pub childrens: Vec<usize>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Tscn<'a> {
-    pub nodes: HashMap<usize, NodeEntry<'a>>,
-    pub sub_resources: HashMap<usize, SubResourceEntry<'a>>,
+pub struct Tscn {
+    pub nodes: HashMap<usize, NodeEntry>,
+    pub sub_resources: HashMap<usize, SubResourceEntry>,
 }
 
-impl<'a> Default for NodeEntry<'a> {
+impl Default for NodeEntry {
     fn default() -> Self {
         NodeEntry {
             uuid: 0,
-            name: "",
+            name: "".to_string(),
             level: 0,
-            rtype: "",
+            rtype: "".to_string(),
             parent_id: 0,
             childrens: Vec::new(),
             properties: HashMap::new(),
@@ -47,20 +48,20 @@ impl<'a> Default for NodeEntry<'a> {
     }
 }
 
-impl<'a> SubResourceEntry<'a> {
-    fn new(rtype: &'a str) -> Self {
+impl SubResourceEntry {
+    fn new(rtype: &str) -> Self {
         SubResourceEntry {
-            rtype,
+            rtype: rtype.to_string(),
             properties: HashMap::new(),
         }
     }
 }
 
-pub fn parse_tscn<'a>(tscn: &'a str) -> Tscn<'a> {
-    let mut context: Option<NodeType<'a>> = None;
-    let mut ctx: IndexMap<&str, usize> = IndexMap::new();
+pub fn parse_tscn(tscn: &str) -> Tscn {
+    let mut context: Option<Node> = None;
+    let mut ctx: IndexMap<String, usize> = IndexMap::new();
 
-    let mut nodes: HashMap<usize, NodeEntry<'a>> = HashMap::new();
+    let mut nodes: HashMap<usize, NodeEntry> = HashMap::new();
     let mut sub_resources = HashMap::new();
 
     let mut node_id: usize = 0;
@@ -70,62 +71,67 @@ pub fn parse_tscn<'a>(tscn: &'a str) -> Tscn<'a> {
             continue;
         }
 
+        // If it is node block definition
         if line.check_borders('[', ']') {
             let (node_type, attributes) = TscnHelper::parse_node(line);
-            context = TscnHelper::get_context(node_type, attributes);
+            println!("{:?}", line);
+            context = Some(TscnHelper::get_node(node_type, attributes));
 
             if context.is_none() {
                 continue;
             }
 
-            match context.unwrap() {
-                NodeType::SubResource(sub_resource) => {
-                    sub_resources
-                        .insert(sub_resource.id, SubResourceEntry::new(sub_resource.rtype));
+            let node = context.clone().unwrap();
+            match node.node_type {
+                NodeType::SubResource => {
+                    sub_resources.insert(node.id, SubResourceEntry::new(&node.rtype));
                 }
-                NodeType::Node(node) => {
-                    let entry: NodeEntry = match node.parent {
-                        "" => {
-                            ctx.insert(".", node_id);
+                NodeType::Node => {
+                    println!("HOPA");
+                    let entry: NodeEntry = if node.parent == String::from("") {
+                        ctx.insert(".".to_string(), node_id);
 
-                            NodeEntry {
-                                name: node.name,
-                                rtype: node.rtype,
-                                ..NodeEntry::default()
+                        NodeEntry {
+                            name: node.name,
+                            rtype: node.rtype,
+                            ..NodeEntry::default()
+                        }
+                    } else {
+                        let clonned_ctx = ctx.clone();
+                        let (level, _, parent_id) = clonned_ctx
+                            .get_full(node.parent.split("/").last().unwrap())
+                            .unwrap();
+
+                        let last_id = ctx.len() - 1;
+                        if level != last_id {
+                            for _ in level..last_id {
+                                ctx.pop();
                             }
                         }
-                        parent => {
-                            let clonned_ctx = ctx.clone();
-                            let (level, _, parent_id) = clonned_ctx.get_full(parent).unwrap();
 
-                            let last_id = ctx.len() - 1;
-                            if level != last_id {
-                                for _ in level..last_id {
-                                    ctx.pop();
-                                }
-                            }
+                        println!("Add name {} id {}", node.name, node_id);
+                        ctx.insert(node.name.clone(), node_id);
+                        nodes
+                            .get_mut(parent_id)
+                            .expect("Missing parent node")
+                            .childrens
+                            .push(node_id);
 
-                            ctx.insert(node.name, node_id);
-                            nodes
-                                .get_mut(parent_id)
-                                .expect("Missing parent node")
-                                .childrens
-                                .push(node_id);
-
-                            NodeEntry {
-                                uuid: TscnHelper::get_path_hash(&ctx),
-                                level: level + 1,
-                                name: node.name,
-                                rtype: node.rtype,
-                                parent_id: *parent_id,
-                                ..NodeEntry::default()
-                            }
+                        NodeEntry {
+                            uuid: TscnHelper::get_path_hash(&ctx),
+                            level: level + 1,
+                            name: node.name,
+                            rtype: node.rtype,
+                            parent_id: *parent_id,
+                            ..NodeEntry::default()
                         }
                     };
 
                     nodes.insert(node_id, entry);
                     node_id += 1;
                 }
+                NodeType::GdScene => (),
+                NodeType::ExtResource => (),
             }
 
             continue;
@@ -137,8 +143,10 @@ pub fn parse_tscn<'a>(tscn: &'a str) -> Tscn<'a> {
 
         let command: Command = TscnHelper::parse_command(line);
 
-        match context.unwrap() {
-            NodeType::Node(_) => {
+        let node = context.clone().unwrap();
+        match node.node_type {
+            NodeType::Node => {
+                println!("{:?}", node.rtype);
                 let (_, id) = ctx.get_index(ctx.len() - 1).unwrap();
                 nodes
                     .get_mut(id)
@@ -146,13 +154,15 @@ pub fn parse_tscn<'a>(tscn: &'a str) -> Tscn<'a> {
                     .properties
                     .insert(command.lhs, command.rhs);
             }
-            NodeType::SubResource(sub_resource) => {
+            NodeType::SubResource => {
                 sub_resources
-                    .get_mut(&sub_resource.id)
+                    .get_mut(&node.id)
                     .unwrap()
                     .properties
                     .insert(command.lhs, command.rhs);
             }
+            NodeType::ExtResource => (),
+            NodeType::GdScene => (),
         };
     }
 

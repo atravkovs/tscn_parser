@@ -43,9 +43,9 @@ checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 
 [[package]]
 name = "fletcher"
-version = "0.0.1"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7caf7b2ed386b438e71d8d4f505e1df3749dabb7923b69c13ce2daab4215e618"
+checksum = "c76f5d0a035d1543c4a3f2d2c84fe00214a6d688e4b8a1ac00a1699528bc6611"
 
 [[package]]
 name = "generic-array"

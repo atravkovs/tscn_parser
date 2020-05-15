@@ -6,6 +6,14 @@ impl StrHelper for str {
     #[inline]
     fn check_borders(&self, start_char: char, end_char: char) -> bool {
         let mut chars = self.chars();
-        chars.nth(0).unwrap() == start_char && chars.rev().nth(0).unwrap() == end_char
+
+        let first = chars.nth(0);
+        let last = chars.rev().nth(0);
+
+        if first.is_none() || last.is_none() {
+            return false;
+        }
+
+        first.unwrap() == start_char && last.unwrap() == end_char
     }
 }
