@@ -1,5 +1,6 @@
 use crate::str_helper::StrHelper;
 use std::collections::HashMap;
+use std::convert::TryInto;
 
 use fletcher::Fletcher16;
 use indexmap::IndexMap;
@@ -11,6 +12,14 @@ lazy_static! {
     static ref RE_VECTOR: Regex =
         Regex::new(r"^Vector2\( (-?\d+(?:\.\d+)?), (-?\d+(?:\.\d+)?) \)$")
             .expect("Failed to read regex pattern");
+    static ref RE_RECT: Regex =
+        Regex::new(r"^Rect2\( (.+) \)$").expect("Failed to read regex pattern");
+    static ref RE_VECTOR_POOL: Regex =
+        Regex::new(r"^PoolVector2Array\( (.+) \)$").expect("Failed to read regex pattern");
+    static ref RE_INT_POOL: Regex =
+        Regex::new(r"^PoolIntArray\( (.+) \)$").expect("Failed to read regex pattern");
+    static ref RE_REAL_POOL: Regex =
+        Regex::new(r"^PoolRealArray\( (.+) \)$").expect("Failed to read regex pattern");
     static ref RE_SUBRES: Regex =
         Regex::new(r"^SubResource\( (\d+) \)$").expect("Failed to read regex pattern");
     static ref RE_EXTRES: Regex =
@@ -19,11 +28,15 @@ lazy_static! {
 
 #[derive(Debug, Clone)]
 pub enum VarType {
-    Num(usize),
+    Num(isize),
     Bool(bool),
     Float(f32),
     Str(String),
+    Rect2([f32; 4]),
+    IntArr(Vec<isize>),
+    FloatArr(Vec<f32>),
     Vector(Vector2<f32>),
+    VectorArr(Vec<Vector2<f32>>),
     Map(HashMap<String, VarType>),
     SubResource(usize),
     ExtResource(usize),
@@ -92,6 +105,11 @@ impl TscnHelper {
             return VarType::Str(String::from(rhs_data.trim_matches('"')));
         }
 
+        // TODO Add support for objects in array
+        if rhs_data.trim() == "{" || rhs_data.split_whitespace().collect::<String>() == "[{" {
+            return VarType::Map(HashMap::default());
+        }
+
         if rhs_data == "true" || rhs_data == "false" {
             return VarType::Bool(rhs_data.parse::<bool>().unwrap());
         }
@@ -108,6 +126,65 @@ impl TscnHelper {
             ));
         }
 
+        if RE_VECTOR_POOL.is_match(rhs_data) {
+            let caps = RE_VECTOR_POOL.captures(rhs_data).unwrap();
+            let arr_str = caps.get(1).unwrap().as_str().split(", ");
+            let mut vec_arr: Vec<Vector2<f32>> = Vec::default();
+            let mut previous: f32 = 0.0;
+            let mut i = 0;
+
+            for s in arr_str {
+                let current = s.parse::<f32>().unwrap();
+
+                if i % 2 == 1 {
+                    vec_arr.push(Vector2::new(previous, current));
+                }
+
+                previous = current;
+                i += 1;
+            }
+
+            return VarType::VectorArr(vec_arr);
+        }
+
+        if RE_RECT.is_match(rhs_data) {
+            let caps = RE_RECT.captures(rhs_data).unwrap();
+            let s: Vec<&str> = caps.get(1).unwrap().as_str().split(", ").collect();
+
+            let arr = [
+                s[0].parse::<f32>().unwrap(),
+                s[1].parse::<f32>().unwrap(),
+                s[2].parse::<f32>().unwrap(),
+                s[3].parse::<f32>().unwrap(),
+            ];
+
+            return VarType::Rect2(arr);
+        }
+
+        if RE_INT_POOL.is_match(rhs_data) {
+            let caps = RE_INT_POOL.captures(rhs_data).unwrap();
+            let arr_str = caps.get(1).unwrap().as_str().split(", ");
+            let mut int_arr: Vec<isize> = Vec::default();
+
+            for s in arr_str {
+                int_arr.push(s.parse::<isize>().unwrap());
+            }
+
+            return VarType::IntArr(int_arr);
+        }
+
+        if RE_REAL_POOL.is_match(rhs_data) {
+            let caps = RE_REAL_POOL.captures(rhs_data).unwrap();
+            let arr_str = caps.get(1).unwrap().as_str().split(", ");
+            let mut real_arr: Vec<f32> = Vec::default();
+
+            for s in arr_str {
+                real_arr.push(s.parse::<f32>().unwrap());
+            }
+
+            return VarType::FloatArr(real_arr);
+        }
+
         if RE_SUBRES.is_match(rhs_data) {
             let caps = RE_SUBRES.captures(rhs_data).unwrap();
             let id: usize = caps.get(1).unwrap().as_str().parse::<usize>().unwrap();
@@ -122,7 +199,7 @@ impl TscnHelper {
             return VarType::ExtResource(id);
         }
 
-        if let Ok(num) = rhs_data.parse::<usize>() {
+        if let Ok(num) = rhs_data.parse::<isize>() {
             return VarType::Num(num);
         }
 
@@ -145,24 +222,29 @@ impl TscnHelper {
         }
     }
 
-    pub fn parse_command<'a>(line: &'a str) -> Command {
-        return Command {
-            lhs: "".to_string(),
-            rhs: VarType::None,
-        };
-
+    pub fn parse_command<'a>(line: &'a str) -> Option<Command> {
         let cmd_data: Vec<&str> = line.split("=").collect();
 
-        println!("{:?}", line);
-
         if cmd_data.len() != 2 {
-            return Self::parse_eq([cmd_data[0], cmd_data[1]]);
+            return None;
         }
 
+        Some(Self::parse_eq([cmd_data[0], cmd_data[1]]))
+    }
+
+    pub fn parse_obj<'a>(line: &'a str) -> Option<Command> {
         let cmd_data: Vec<&str> = line.split(":").collect();
+
+        if cmd_data.len() != 2 {
+            return None;
+        }
+
         let lhs = cmd_data[0].trim_matches('"');
 
-        Self::parse_eq([lhs, cmd_data[1]])
+        Some(Self::parse_eq([
+            lhs,
+            cmd_data[1].trim().trim_end_matches(','),
+        ]))
     }
 
     pub fn get_node<'a>(node_type: &'a str, attributes_str: &'a str) -> Node {
@@ -176,15 +258,13 @@ impl TscnHelper {
         };
 
         let attributes = Self::split_attributes(attributes_str);
-        println!("Attr: {:?}", attributes);
-
         for attribute in attributes {
             let attr_name = attribute.0.as_str();
 
             match attr_name {
                 "id" => {
                     node.id = if let VarType::Num(id) = attribute.1 {
-                        id
+                        id.try_into().unwrap()
                     } else {
                         0
                     }
@@ -226,19 +306,19 @@ impl TscnHelper {
                 }
                 "load_steps" => {
                     node.load_steps = if let VarType::Num(ls) = attribute.1 {
-                        ls
+                        ls.try_into().unwrap()
                     } else {
                         0
                     }
                 }
                 "format" => {
                     node.format = if let VarType::Num(f) = attribute.1 {
-                        f
+                        f.try_into().unwrap()
                     } else {
                         0
                     }
                 }
-                _ => unimplemented!(),
+                wtf => unimplemented!("{}", wtf),
             }
         }
 
@@ -266,6 +346,8 @@ impl TscnHelper {
         let mut commands: Vec<(String, VarType)> = Vec::new();
 
         let mut is_lhs = true;
+        let mut isq_opened = false;
+        let mut isb_opened = false;
         let mut lhs = String::from("");
         let mut rhs = String::from("");
         let mut previous = ' ';
@@ -283,13 +365,32 @@ impl TscnHelper {
                 continue;
             }
 
+            if ch == '"' {
+                isq_opened = !isq_opened;
+            }
+
+            if ch == '(' {
+                isb_opened = true;
+            }
+
+            if ch == ')' {
+                isb_opened = false;
+            }
+
             if i == line.len() - 1 {
                 rhs.push(ch);
                 commands.push((lhs, Self::parse_rhs(&rhs)));
                 break;
             }
 
-            if previous == ' ' && ch.is_alphabetic() && is_lhs == false && lhs != "" && rhs != "" {
+            if previous == ' '
+                && ch.is_alphabetic()
+                && is_lhs == false
+                && lhs != ""
+                && rhs != ""
+                && !isq_opened
+                && !isb_opened
+            {
                 commands.push((lhs, Self::parse_rhs(&rhs)));
                 lhs = String::from("");
                 lhs.push(ch);
@@ -301,7 +402,6 @@ impl TscnHelper {
 
             if is_lhs {
                 lhs = format!("{}{}", lhs, ch);
-                println!("Lhs {}", lhs);
             } else {
                 rhs = format!("{}{}", rhs, ch);
             }
