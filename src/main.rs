@@ -1,14 +1,14 @@
 use glob::{glob, GlobError};
 use std::fs;
 
-use ::tscn_parser::parse_tscn;
+use ::tscn_parser::Loader;
 
 fn main() {
     println!("Reading available scenes...");
     let scenes = parse("../game/client/common-assets/Scenes/*.tscn").expect("Error reading path");
 
     for scene in scenes {
-        let tscn = parse_tscn(&scene);
+        let tscn = Loader::new().parse_tscn(&scene);
         println!("SubResources:\n--------------------------------------------------");
         for (id, res) in &tscn.sub_resources {
             println!("{:?}: {:?}", id, res);
@@ -18,6 +18,9 @@ fn main() {
         for (id, node) in &tscn.nodes {
             println!("{:?}: {:?}", id, node);
         }
+
+        println!("Resource:\n---------------------------------------------------------");
+        println!("{:?}", &tscn.resource);
     }
 }
 

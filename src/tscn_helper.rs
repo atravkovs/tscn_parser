@@ -1,4 +1,5 @@
 use crate::str_helper::StrHelper;
+use crate::NodeEntry;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
@@ -40,13 +41,15 @@ pub enum VarType {
     Map(HashMap<String, VarType>),
     SubResource(usize),
     ExtResource(usize),
-    None,
+    None(String),
 }
 
 #[derive(Debug, Clone)]
 pub enum NodeType {
     Node,
     GdScene,
+    Resource,
+    GdResource,
     SubResource,
     ExtResource,
 }
@@ -207,7 +210,7 @@ impl TscnHelper {
             return VarType::Float(fl);
         }
 
-        VarType::None
+        VarType::None(rhs_data.to_string())
     }
 
     fn parse_eq<'a>(cmd_data: [&'a str; 2]) -> Command {
@@ -252,6 +255,8 @@ impl TscnHelper {
 
         match node_type {
             "gd_scene" => node.node_type = NodeType::GdScene,
+            "resource" => node.node_type = NodeType::Resource,
+            "gd_resource" => node.node_type = NodeType::GdResource,
             "sub_resource" => node.node_type = NodeType::SubResource,
             "ext_resource" => node.node_type = NodeType::ExtResource,
             _ => (),
@@ -325,16 +330,18 @@ impl TscnHelper {
         node
     }
 
-    pub fn get_path_hash(ctx: &IndexMap<String, usize>) -> u16 {
+    pub fn get_path_hash(ctx: &IndexMap<String, usize>, nodes: &HashMap<usize, NodeEntry>) -> u16 {
         let mut checksum = Fletcher16::new();
-        let mut path = "/root/root".to_string();
+        let mut path = "/root".to_string();
 
         for key in ctx.keys() {
-            if key == &"." {
-                continue;
-            }
+            let current = if key == &"." {
+                &nodes.get(ctx.get(key).unwrap()).unwrap().name
+            } else {
+                key
+            };
 
-            path.push_str(&format!("/{}", key));
+            path.push_str(&format!("/{}", current));
         }
 
         checksum.update(&path.as_bytes());
