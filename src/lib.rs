@@ -3,7 +3,9 @@ extern crate lazy_static;
 
 use indexmap::IndexMap;
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
 
 use str_helper::StrHelper;
 pub use tscn_helper::{Node, NodeType, TscnHelper, VarType};
@@ -124,8 +126,8 @@ impl PropertyTrait for PropertyMap {
 }
 
 // TODO implement
-pub struct Loader {
-    // pub map_path: HashMap<String, &'a Path>,
+pub struct Loader<'a> {
+    map_path: HashMap<String, &'a Path>,
     ctx: IndexMap<String, usize>,
     context: Option<Node>,
     node_id: usize,
@@ -137,8 +139,10 @@ pub struct Loader {
     last_prop: Option<String>,
 }
 
-impl Loader {
+impl<'a> Loader<'a> {
     pub fn new() -> Self {
+        let map_path = HashMap::new();
+
         let context: Option<Node> = None;
         let ctx: IndexMap<String, usize> = IndexMap::new();
 
@@ -152,6 +156,7 @@ impl Loader {
         let last_prop: Option<String> = None;
 
         Loader {
+            map_path,
             ctx,
             context,
             node_id,
@@ -162,6 +167,41 @@ impl Loader {
             nodes,
             last_prop,
         }
+    }
+
+    pub fn register_path(&mut self, gdpath: String, syspath: &'a Path) {
+        self.map_path.insert(gdpath, syspath);
+    }
+
+    pub fn load(&mut self, gdpath: String) -> Option<Tscn> {
+        if let Some(path) = self.get_path(gdpath) {
+            let contents = fs::read_to_string(path).expect("Something went wrong reading the file");
+            return Some(self.parse_tscn(&contents));
+        }
+
+        None
+    }
+
+    fn clone_loader(&self) -> Self {
+        let mut loader = Loader::new();
+        loader.map_path = self.map_path.clone();
+
+        loader
+    }
+
+    fn get_path(&self, gdpath: String) -> Option<PathBuf> {
+        for (spath, syspath) in &self.map_path {
+            if gdpath.len() >= spath.len() + 1 && spath.as_str() == &gdpath[0..spath.len()] {
+                let jpath = &gdpath[spath.len() + 1..];
+                let joined_path = syspath.join(jpath);
+
+                if joined_path.exists() {
+                    return Some(joined_path);
+                }
+            }
+        }
+
+        None
     }
 
     fn parse_node(&mut self, line: &str) {
@@ -229,8 +269,12 @@ impl Loader {
             NodeType::Resource => (),
             NodeType::GdScene => (),
             NodeType::ExtResource => {
-                // TODO implement load path
-                // ext_resources.insert(node.id, self.load_path(node.path));
+                let mut loader = self.clone_loader();
+                let load = loader.load(node.path);
+
+                if let Some(tscn) = load {
+                    self.ext_resources.insert(node.id, tscn);
+                }
             }
         }
     }
@@ -253,31 +297,33 @@ impl Loader {
         }
     }
 
-    pub fn parse_tscn(&mut self, tscn: &str) -> Tscn {
-        for line in tscn.lines() {
-            if line.is_empty() {
-                continue;
-            }
+    pub fn parse_line(&mut self, line: &str) {
+        if line.is_empty() || line.trim() == "}" || line.trim_matches(' ') == "}]" {
+            return;
+        }
 
-            let lprop_clone = self.last_prop.clone();
+        let lprop_clone = self.last_prop.clone();
 
-            // If it is node block definition
-            if line.check_borders('[', ']') {
-                self.parse_node(&line);
-            } else if line.trim() == "}" || line.trim_matches(' ') == "}]" {
-                continue;
-            } else if let Some(ctxprops) = self.get_ctxnode_props() {
-                if let Some(command) = TscnHelper::parse_command(line) {
-                    ctxprops.insert_to(command.lhs.clone(), command.rhs);
-                    self.last_prop = Some(command.lhs);
-                } else if let Some(command) = TscnHelper::parse_obj(line) {
-                    if let Some(prop) = lprop_clone {
-                        if let Some(VarType::Map(obj)) = ctxprops.get_from_mut(&prop) {
-                            obj.insert(command.lhs, command.rhs);
-                        }
+        // If it is node block definition
+        if line.check_borders('[', ']') {
+            self.parse_node(&line);
+        } else if let Some(ctxprops) = self.get_ctxnode_props() {
+            if let Some(command) = TscnHelper::parse_command(line) {
+                ctxprops.insert_to(command.lhs.clone(), command.rhs);
+                self.last_prop = Some(command.lhs);
+            } else if let Some(command) = TscnHelper::parse_obj(line) {
+                if let Some(prop) = lprop_clone {
+                    if let Some(VarType::Map(obj)) = ctxprops.get_from_mut(&prop) {
+                        obj.insert(command.lhs, command.rhs);
                     }
                 }
             }
+        }
+    }
+
+    pub fn parse_tscn(&mut self, tscn: &str) -> Tscn {
+        for line in tscn.lines() {
+            self.parse_line(line);
         }
 
         Tscn {
