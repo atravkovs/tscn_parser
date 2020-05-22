@@ -22,9 +22,9 @@ lazy_static! {
     static ref RE_REAL_POOL: Regex =
         Regex::new(r"^PoolRealArray\( (.+) \)$").expect("Failed to read regex pattern");
     static ref RE_SUBRES: Regex =
-        Regex::new(r"^SubResource\( (\d+) \)$").expect("Failed to read regex pattern");
+        Regex::new(r"^SubResource\(\s?(\d+)\s?\)$").expect("Failed to read regex pattern");
     static ref RE_EXTRES: Regex =
-        Regex::new(r"^ExtResource\( (\d+) \)$").expect("Failed to read regex pattern");
+        Regex::new(r"^ExtResource\(\s?(\d+)\s?\)$").expect("Failed to read regex pattern");
 }
 
 #[derive(Debug, Clone)]
@@ -44,7 +44,7 @@ pub enum VarType {
     None(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NodeType {
     Node,
     GdScene,
@@ -60,7 +60,7 @@ pub struct Command {
     pub rhs: VarType,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Node {
     pub id: usize,
     pub format: usize,
@@ -137,6 +137,7 @@ impl TscnHelper {
             let mut i = 0;
 
             for s in arr_str {
+                println!("WUT {:?}", s);
                 let current = s.parse::<f32>().unwrap();
 
                 if i % 2 == 1 {
@@ -266,6 +267,7 @@ impl TscnHelper {
         for attribute in attributes {
             let attr_name = attribute.0.as_str();
 
+            println!("MEH {:?}", attribute.1);
             match attr_name {
                 "id" => {
                     node.id = if let VarType::Num(id) = attribute.1 {
@@ -367,7 +369,7 @@ impl TscnHelper {
                 continue;
             }
 
-            if ch == ' ' {
+            if ch == ' ' && !isq_opened {
                 previous = ' ';
                 continue;
             }
@@ -417,5 +419,128 @@ impl TscnHelper {
         }
 
         commands
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tscn_helper::*;
+
+    #[test]
+    fn test_parse_node() {
+        assert_eq!(
+            TscnHelper::parse_node("[gd_scene load_steps=21 format=2]"),
+            ("gd_scene", "load_steps=21 format=2")
+        );
+        assert_eq!(
+            TscnHelper::parse_node("[gd_resource type=\"TileSet\" load_steps=7 format=2]"),
+            ("gd_resource", "type=\"TileSet\" load_steps=7 format=2")
+        );
+        assert_eq!(
+            TscnHelper::parse_node(
+                "[ext_resource path=\"res://Scripts/Client.gd\" type=\"Script\" id=3]"
+            ),
+            (
+                "ext_resource",
+                "path=\"res://Scripts/Client.gd\" type=\"Script\" id=3"
+            )
+        );
+        assert_eq!(
+            TscnHelper::parse_node("[sub_resource type=\"TileSet\" id=5]"),
+            ("sub_resource", "type=\"TileSet\" id=5")
+        );
+        assert_eq!(
+            TscnHelper::parse_node(
+                "[node name=\"Simple Background\" type=\"Sprite\" parent=\".\"]"
+            ),
+            (
+                "node",
+                "name=\"Simple Background\" type=\"Sprite\" parent=\".\""
+            )
+        );
+        assert_eq!(
+            TscnHelper::parse_node("[node name=\"Doggo\" parent=\".\" instance=ExtResource( 5 )]"),
+            (
+                "node",
+                "name=\"Doggo\" parent=\".\" instance=ExtResource( 5 )"
+            )
+        );
+        assert_eq!(TscnHelper::parse_node("[resource]"), ("resource", ""));
+    }
+
+    #[test]
+    fn test_get_node() {
+        assert_eq!(
+            TscnHelper::get_node("gd_scene", "load_steps=21 format=2"),
+            Node {
+                format: 2,
+                load_steps: 21,
+                node_type: NodeType::GdScene,
+                ..Node::default()
+            }
+        );
+        assert_eq!(
+            TscnHelper::get_node("gd_resource", "type=\"TileSet\" load_steps=7 format=2"),
+            Node {
+                format: 2,
+                load_steps: 7,
+                rtype: "TileSet".to_string(),
+                node_type: NodeType::GdResource,
+                ..Node::default()
+            }
+        );
+        assert_eq!(
+            TscnHelper::get_node(
+                "ext_resource",
+                "path=\"res://Scripts/Client.gd\" type=\"Script\" id=3"
+            ),
+            Node {
+                id: 3,
+                rtype: "Script".to_string(),
+                path: "res://Scripts/Client.gd".to_string(),
+                node_type: NodeType::ExtResource,
+                ..Node::default()
+            }
+        );
+        assert_eq!(
+            TscnHelper::get_node("sub_resource", "type=\"TileSet\" id=5"),
+            Node {
+                id: 5,
+                rtype: "TileSet".to_string(),
+                node_type: NodeType::SubResource,
+                ..Node::default()
+            }
+        );
+        assert_eq!(
+            TscnHelper::get_node(
+                "node",
+                "name=\"Simple Background\" type=\"Sprite\" parent=\".\""
+            ),
+            Node {
+                parent: ".".to_string(),
+                rtype: "Sprite".to_string(),
+                name: "Simple Background".to_string(),
+                ..Node::default()
+            }
+        );
+        assert_eq!(
+            TscnHelper::get_node(
+                "node",
+                "name=\"Doggo\" parent=\".\" instance=ExtResource( 5 )"
+            ),
+            Node {
+                parent: ".".to_string(),
+                name: "Doggo".to_string(),
+                instance_resource_id: 5,
+                ..Node::default()
+            }
+        );
+        assert_eq!(
+            TscnHelper::get_node("resource", ""),
+            Node {
+                node_type: NodeType::Resource,
+                ..Node::default()
+            }
+        );
     }
 }
