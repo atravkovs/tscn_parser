@@ -137,7 +137,6 @@ impl TscnHelper {
             let mut i = 0;
 
             for s in arr_str {
-                println!("WUT {:?}", s);
                 let current = s.parse::<f32>().unwrap();
 
                 if i % 2 == 1 {
@@ -267,7 +266,6 @@ impl TscnHelper {
         for attribute in attributes {
             let attr_name = attribute.0.as_str();
 
-            println!("MEH {:?}", attribute.1);
             match attr_name {
                 "id" => {
                     node.id = if let VarType::Num(id) = attribute.1 {
