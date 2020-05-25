@@ -125,7 +125,6 @@ impl PropertyTrait for PropertyMap {
     }
 }
 
-// TODO implement
 pub struct Loader<'a> {
     map_path: HashMap<String, &'a Path>,
     ctx: IndexMap<String, usize>,
