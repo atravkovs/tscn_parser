@@ -31,7 +31,7 @@ pub struct NodeEntry {
 #[derive(Debug, Clone)]
 pub struct Tscn {
     pub rtype: String,
-    pub nodes: HashMap<usize, NodeEntry>,
+    pub nodes: IndexMap<usize, NodeEntry>,
     pub resource: PropertyMap,
     pub sub_resources: HashMap<usize, NodeEntry>,
     pub ext_resources: HashMap<usize, Tscn>,
@@ -134,7 +134,7 @@ pub struct Loader<'a> {
     resource: HashMap<String, VarType>,
     sub_resources: HashMap<usize, NodeEntry>,
     ext_resources: HashMap<usize, Tscn>,
-    nodes: HashMap<usize, NodeEntry>,
+    nodes: IndexMap<usize, NodeEntry>,
     last_prop: Option<String>,
 }
 
@@ -147,7 +147,7 @@ impl<'a> Loader<'a> {
 
         let rtype = "Scene".to_string();
         let resource: HashMap<String, VarType> = HashMap::new();
-        let nodes: HashMap<usize, NodeEntry> = HashMap::new();
+        let nodes: IndexMap<usize, NodeEntry> = IndexMap::new();
         let sub_resources = HashMap::new();
         let ext_resources: HashMap<usize, Tscn> = HashMap::new();
 

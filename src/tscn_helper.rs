@@ -330,7 +330,7 @@ impl TscnHelper {
         node
     }
 
-    pub fn get_path_hash(ctx: &IndexMap<String, usize>, nodes: &HashMap<usize, NodeEntry>) -> u16 {
+    pub fn get_path_hash(ctx: &IndexMap<String, usize>, nodes: &IndexMap<usize, NodeEntry>) -> u16 {
         let mut checksum = Fletcher16::new();
         let mut path = "/root".to_string();
 
