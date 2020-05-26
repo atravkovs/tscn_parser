@@ -306,14 +306,37 @@ impl<'a> Loader<'a> {
         // If it is node block definition
         if line.check_borders('[', ']') {
             self.parse_node(&line);
-        } else if let Some(ctxprops) = self.get_ctxnode_props() {
+            return;
+        }
+
+        if let Some(ctxprops) = self.get_ctxnode_props() {
+            if line.trim() == "}, {" {
+                if let Some(prop) = lprop_clone {
+                    if let Some(VarType::ArrMap(arr_map)) = ctxprops.get_from_mut(&prop) {
+                        arr_map.push(HashMap::default());
+                    }
+                }
+                return;
+            }
+
             if let Some(command) = TscnHelper::parse_command(line) {
                 ctxprops.insert_to(command.lhs.clone(), command.rhs);
                 self.last_prop = Some(command.lhs);
-            } else if let Some(command) = TscnHelper::parse_obj(line) {
+                return;
+            }
+
+            if let Some(command) = TscnHelper::parse_obj(line) {
                 if let Some(prop) = lprop_clone {
-                    if let Some(VarType::Map(obj)) = ctxprops.get_from_mut(&prop) {
+                    let node_prop = ctxprops.get_from_mut(&prop);
+                    if let Some(VarType::Map(obj)) = node_prop {
                         obj.insert(command.lhs, command.rhs);
+                        return;
+                    }
+
+                    if let Some(VarType::ArrMap(arr_map)) = node_prop {
+                        if let Some(obj) = arr_map.last_mut() {
+                            obj.insert(command.lhs, command.rhs);
+                        }
                     }
                 }
             }

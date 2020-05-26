@@ -38,6 +38,7 @@ pub enum VarType {
     FloatArr(Vec<f32>),
     Vector(Vector2<f32>),
     VectorArr(Vec<Vector2<f32>>),
+    ArrMap(Vec<HashMap<String, VarType>>),
     Map(HashMap<String, VarType>),
     SubResource(usize),
     ExtResource(usize),
@@ -108,8 +109,11 @@ impl TscnHelper {
             return VarType::Str(String::from(rhs_data.trim_matches('"')));
         }
 
-        // TODO Add support for objects in array
-        if rhs_data.trim() == "{" || rhs_data.split_whitespace().collect::<String>() == "[{" {
+        if rhs_data.split_whitespace().collect::<String>() == "[{" {
+            return VarType::ArrMap(Vec::default());
+        }
+
+        if rhs_data.trim() == "{" {
             return VarType::Map(HashMap::default());
         }
 
