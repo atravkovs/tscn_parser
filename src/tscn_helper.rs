@@ -33,7 +33,7 @@ pub enum VarType {
     Bool(bool),
     Float(f32),
     Str(String),
-    Rect2([f32; 4]),
+    Rect2([Vector2<f32>; 2]),
     IntArr(Vec<isize>),
     FloatArr(Vec<f32>),
     Vector(Vector2<f32>),
@@ -159,10 +159,8 @@ impl TscnHelper {
             let s: Vec<&str> = caps.get(1).unwrap().as_str().split(", ").collect();
 
             let arr = [
-                s[0].parse::<f32>().unwrap(),
-                s[1].parse::<f32>().unwrap(),
-                s[2].parse::<f32>().unwrap(),
-                s[3].parse::<f32>().unwrap(),
+                Vector2::<f32>::new(s[0].parse::<f32>().unwrap(), s[1].parse::<f32>().unwrap()),
+                Vector2::<f32>::new(s[2].parse::<f32>().unwrap(), s[3].parse::<f32>().unwrap()),
             ];
 
             return VarType::Rect2(arr);
