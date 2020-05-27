@@ -110,7 +110,7 @@ impl TscnHelper {
         }
 
         if rhs_data.split_whitespace().collect::<String>() == "[{" {
-            return VarType::ArrMap(Vec::default());
+            return VarType::ArrMap(vec![HashMap::default()]);
         }
 
         if rhs_data.trim() == "{" {
