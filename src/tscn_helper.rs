@@ -1,5 +1,7 @@
 use crate::str_helper::StrHelper;
+use crate::types::{ControlPoint, Curve};
 use crate::NodeEntry;
+
 use std::collections::HashMap;
 use std::convert::TryInto;
 
@@ -33,6 +35,7 @@ pub enum VarType {
     Bool(bool),
     Float(f32),
     Str(String),
+    Curve(Curve),
     Rect2([Vector2<f32>; 2]),
     IntArr(Vec<isize>),
     FloatArr(Vec<f32>),
@@ -104,9 +107,36 @@ impl TscnHelper {
         (rtype, params_str)
     }
 
-    fn parse_rhs<'a>(rhs_data: &'a str) -> VarType {
+    fn parse_rhs<'a>(rhs_data: &'a str, rtype: &str) -> VarType {
         if rhs_data.check_borders('"', '"') {
             return VarType::Str(String::from(rhs_data.trim_matches('"')));
+        }
+
+        if rhs_data.check_borders('[', ']') {
+            let str_data = rhs_data.trim_start_matches('[').trim_end_matches(']');
+            let split = Self::get_splitted(str_data);
+
+            match rtype {
+                "Curve" => {
+                    let mut curve = Curve::default();
+
+                    for i in (0..split.len()).step_by(5) {
+                        if let VarType::Vector(vector) = &split[i] {
+                            if let VarType::Float(left_arm) = &split[i + 1] {
+                                if let VarType::Float(right_arm) = &split[i + 2] {
+                                    let control_point = ControlPoint::new_point(
+                                        vector.x, vector.y, *left_arm, *right_arm,
+                                    );
+                                    curve.add_point(control_point);
+                                }
+                            }
+                        }
+                    }
+
+                    return VarType::Curve(curve);
+                }
+                _ => (),
+            }
         }
 
         if rhs_data.split_whitespace().collect::<String>() == "[{" {
@@ -215,11 +245,55 @@ impl TscnHelper {
         VarType::None(rhs_data.to_string())
     }
 
-    fn parse_eq<'a>(cmd_data: [&'a str; 2]) -> Command {
+    fn get_splitted(data: &str) -> Vec<VarType> {
+        let mut vars = Vec::default();
+
+        let mut isq_opened = false;
+        let mut isb_opened = false;
+        let mut cmd = String::from("");
+
+        let formatted = data.trim();
+
+        for (i, ch) in formatted.chars().enumerate() {
+            if ch == ' ' && !isq_opened && !isb_opened {
+                continue;
+            }
+
+            if ch == '"' {
+                isq_opened = !isq_opened;
+            }
+
+            if ch == '(' {
+                isb_opened = true;
+            }
+
+            if ch == ')' {
+                isb_opened = false;
+            }
+
+            if i == formatted.len() - 1 {
+                cmd.push(ch);
+                vars.push(Self::parse_rhs(&cmd, ""));
+                break;
+            }
+
+            if ch == ',' && !isq_opened && !isb_opened {
+                vars.push(Self::parse_rhs(&cmd, ""));
+                cmd = String::from("");
+                continue;
+            }
+
+            cmd = format!("{}{}", cmd, ch);
+        }
+
+        vars
+    }
+
+    fn parse_eq<'a>(cmd_data: [&'a str; 2], rtype: &str) -> Command {
         let lhs_data = cmd_data[0].trim();
         let rhs_data = cmd_data[1].trim();
 
-        let rhs = Self::parse_rhs(rhs_data);
+        let rhs = Self::parse_rhs(rhs_data, rtype);
 
         Command {
             lhs: lhs_data.to_string(),
@@ -227,17 +301,17 @@ impl TscnHelper {
         }
     }
 
-    pub fn parse_command<'a>(line: &'a str) -> Option<Command> {
+    pub fn parse_command<'a>(line: &'a str, rtype: &str) -> Option<Command> {
         let cmd_data: Vec<&str> = line.split("=").collect();
 
         if cmd_data.len() != 2 {
             return None;
         }
 
-        Some(Self::parse_eq([cmd_data[0], cmd_data[1]]))
+        Some(Self::parse_eq([cmd_data[0], cmd_data[1]], rtype))
     }
 
-    pub fn parse_obj<'a>(line: &'a str) -> Option<Command> {
+    pub fn parse_obj<'a>(line: &'a str, rtype: &str) -> Option<Command> {
         let cmd_data: Vec<&str> = line.split(":").collect();
 
         if cmd_data.len() != 2 {
@@ -246,10 +320,10 @@ impl TscnHelper {
 
         let lhs = cmd_data[0].trim_matches('"');
 
-        Some(Self::parse_eq([
-            lhs,
-            cmd_data[1].trim().trim_end_matches(','),
-        ]))
+        Some(Self::parse_eq(
+            [lhs, cmd_data[1].trim().trim_end_matches(',')],
+            rtype,
+        ))
     }
 
     pub fn get_node<'a>(node_type: &'a str, attributes_str: &'a str) -> Node {
@@ -388,7 +462,7 @@ impl TscnHelper {
 
             if i == line.len() - 1 {
                 rhs.push(ch);
-                commands.push((lhs, Self::parse_rhs(&rhs)));
+                commands.push((lhs, Self::parse_rhs(&rhs, "")));
                 break;
             }
 
@@ -400,7 +474,7 @@ impl TscnHelper {
                 && !isq_opened
                 && !isb_opened
             {
-                commands.push((lhs, Self::parse_rhs(&rhs)));
+                commands.push((lhs, Self::parse_rhs(&rhs, "")));
                 lhs = String::from("");
                 lhs.push(ch);
                 rhs = String::from("");

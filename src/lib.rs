@@ -13,6 +13,7 @@ pub use tscn_helper::{Node, NodeType, TscnHelper, VarType};
 // pub mod nodes;
 pub mod str_helper;
 pub mod tscn_helper;
+pub mod types;
 
 type PropertyMap = HashMap<String, VarType>;
 
@@ -278,17 +279,21 @@ impl<'a> Loader<'a> {
         }
     }
 
-    fn get_ctxnode_props(&mut self) -> Option<&mut PropertyMap> {
+    fn get_ctxnode_props(&mut self) -> Option<(String, &mut PropertyMap)> {
         if let Some(node) = self.context.clone() {
             match node.node_type {
                 NodeType::Node => {
                     let (_, id) = self.ctx.get_index(self.ctx.len() - 1).unwrap();
-                    Some(&mut self.nodes.get_mut(id).unwrap().properties)
+                    Some((
+                        node.rtype.clone(),
+                        &mut self.nodes.get_mut(id).unwrap().properties,
+                    ))
                 }
-                NodeType::SubResource => {
-                    Some(&mut self.sub_resources.get_mut(&node.id).unwrap().properties)
-                }
-                NodeType::Resource => Some(&mut self.resource),
+                NodeType::SubResource => Some((
+                    node.rtype.clone(),
+                    &mut self.sub_resources.get_mut(&node.id).unwrap().properties,
+                )),
+                NodeType::Resource => Some((self.rtype.clone(), &mut self.resource)),
                 _ => None,
             }
         } else {
@@ -309,7 +314,7 @@ impl<'a> Loader<'a> {
             return;
         }
 
-        if let Some(ctxprops) = self.get_ctxnode_props() {
+        if let Some((rtype, ctxprops)) = self.get_ctxnode_props() {
             if line.trim() == "}, {" {
                 if let Some(prop) = lprop_clone {
                     if let Some(VarType::ArrMap(arr_map)) = ctxprops.get_from_mut(&prop) {
@@ -319,20 +324,19 @@ impl<'a> Loader<'a> {
                 return;
             }
 
-            if let Some(command) = TscnHelper::parse_command(line) {
+            if let Some(command) = TscnHelper::parse_command(line, rtype.as_str()) {
                 ctxprops.insert_to(command.lhs.clone(), command.rhs);
                 self.last_prop = Some(command.lhs);
                 return;
             }
 
-            if let Some(command) = TscnHelper::parse_obj(line) {
+            if let Some(command) = TscnHelper::parse_obj(line, rtype.as_str()) {
                 if let Some(prop) = lprop_clone {
                     let node_prop = ctxprops.get_from_mut(&prop);
                     if let Some(VarType::Map(obj)) = node_prop {
                         obj.insert(command.lhs, command.rhs);
                         return;
                     }
-
                     if let Some(VarType::ArrMap(arr_map)) = node_prop {
                         if let Some(obj) = arr_map.last_mut() {
                             obj.insert(command.lhs, command.rhs);

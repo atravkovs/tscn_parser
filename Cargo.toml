@@ -1,6 +1,6 @@
 [package]
 name = "tscn-parser"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["Artjoms Travkovs <atravkovs@gmail.com>"]
 edition = "2018"
 
