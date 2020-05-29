@@ -173,13 +173,13 @@ impl<'a> Loader<'a> {
         self.map_path.insert(gdpath, syspath);
     }
 
-    pub fn load(&mut self, gdpath: String) -> Option<Tscn> {
+    pub fn load(&mut self, gdpath: String) -> Result<Tscn, String> {
         if let Some(path) = self.get_path(gdpath) {
             let contents = fs::read_to_string(path).expect("Something went wrong reading the file");
-            return Some(self.parse_tscn(&contents));
+            return Ok(self.parse_tscn(&contents));
         }
 
-        None
+        Err("Path not found".to_string())
     }
 
     fn clone_loader(&self) -> Self {
@@ -272,7 +272,7 @@ impl<'a> Loader<'a> {
                 let mut loader = self.clone_loader();
                 let load = loader.load(node.path);
 
-                if let Some(tscn) = load {
+                if let Ok(tscn) = load {
                     self.ext_resources.insert(node.id, tscn);
                 }
             }
