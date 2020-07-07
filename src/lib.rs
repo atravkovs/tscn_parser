@@ -23,6 +23,7 @@ pub struct NodeEntry {
     pub level: usize,
     pub name: String,
     pub rtype: String,
+    pub instance: usize,
     pub parent_id: usize,
     pub node_type: NodeType,
     pub childrens: Vec<usize>,
@@ -44,6 +45,7 @@ impl Default for NodeEntry {
             path: "".to_string(),
             name: "".to_string(),
             level: 0,
+            instance: 0,
             rtype: "".to_string(),
             parent_id: 0,
             childrens: Vec::new(),
@@ -255,6 +257,7 @@ impl<'a> Loader<'a> {
                         name: node.name,
                         rtype: node.rtype,
                         parent_id: *parent_id,
+                        instance: node.instance_resource_id,
                         ..NodeEntry::default()
                     }
                 };
