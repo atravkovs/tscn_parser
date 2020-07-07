@@ -5,7 +5,6 @@ use crate::NodeEntry;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-use fletcher::Fletcher16;
 use indexmap::IndexMap;
 use regex::Regex;
 
@@ -406,9 +405,8 @@ impl TscnHelper {
         node
     }
 
-    pub fn get_path_hash(ctx: &IndexMap<String, usize>, nodes: &IndexMap<usize, NodeEntry>) -> u16 {
-        let mut checksum = Fletcher16::new();
-        let mut path = "/root".to_string();
+    pub fn get_path(ctx: &IndexMap<String, usize>, nodes: &IndexMap<usize, NodeEntry>) -> String {
+        let mut path = "".to_string();
 
         for key in ctx.keys() {
             let current = if key == &"." {
@@ -420,9 +418,7 @@ impl TscnHelper {
             path.push_str(&format!("/{}", current));
         }
 
-        checksum.update(&path.as_bytes());
-
-        checksum.value()
+        path
     }
 
     fn split_attributes<'a>(cmd_line: &'a str) -> Vec<(String, VarType)> {

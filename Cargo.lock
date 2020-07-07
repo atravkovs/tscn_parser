@@ -42,12 +42,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 
 [[package]]
-name = "fletcher"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c76f5d0a035d1543c4a3f2d2c84fe00214a6d688e4b8a1ac00a1699528bc6611"
-
-[[package]]
 name = "generic-array"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -259,9 +253,8 @@ dependencies = [
 
 [[package]]
 name = "tscn-parser"
-version = "0.5.0"
+version = "0.5.5"
 dependencies = [
- "fletcher",
  "indexmap",
  "lazy_static",
  "nalgebra",

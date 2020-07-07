@@ -19,7 +19,7 @@ type PropertyMap = HashMap<String, VarType>;
 
 #[derive(Debug, Clone)]
 pub struct NodeEntry {
-    pub uuid: u16,
+    pub path: String,
     pub level: usize,
     pub name: String,
     pub rtype: String,
@@ -41,7 +41,7 @@ pub struct Tscn {
 impl Default for NodeEntry {
     fn default() -> Self {
         NodeEntry {
-            uuid: 0,
+            path: "".to_string(),
             name: "".to_string(),
             level: 0,
             rtype: "".to_string(),
@@ -224,6 +224,7 @@ impl<'a> Loader<'a> {
                     self.ctx.insert(".".to_string(), self.node_id);
 
                     NodeEntry {
+                        path: format!("/{}", node.name),
                         name: node.name,
                         rtype: node.rtype,
                         ..NodeEntry::default()
@@ -249,7 +250,7 @@ impl<'a> Loader<'a> {
                         .push(self.node_id);
 
                     NodeEntry {
-                        uuid: TscnHelper::get_path_hash(&self.ctx, &self.nodes),
+                        path: TscnHelper::get_path(&self.ctx, &self.nodes),
                         level: level + 1,
                         name: node.name,
                         rtype: node.rtype,
