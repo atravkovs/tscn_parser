@@ -8,7 +8,8 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use str_helper::StrHelper;
-pub use tscn_helper::{Node, NodeType, TscnHelper, VarType};
+pub use tscn_helper::{Node, NodeType, TscnHelper};
+pub use types::VarType;
 
 // pub mod nodes;
 pub mod str_helper;

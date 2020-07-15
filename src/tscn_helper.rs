@@ -1,5 +1,5 @@
 use crate::str_helper::StrHelper;
-use crate::types::{ControlPoint, Curve};
+use crate::types::{ControlPoint, Curve, VarType};
 use crate::NodeEntry;
 
 use std::collections::HashMap;
@@ -26,25 +26,6 @@ lazy_static! {
         Regex::new(r"^SubResource\(\s?(\d+)\s?\)$").expect("Failed to read regex pattern");
     static ref RE_EXTRES: Regex =
         Regex::new(r"^ExtResource\(\s?(\d+)\s?\)$").expect("Failed to read regex pattern");
-}
-
-#[derive(Debug, Clone)]
-pub enum VarType {
-    Num(isize),
-    Bool(bool),
-    Float(f32),
-    Str(String),
-    Curve(Curve),
-    Rect2([Vector2<f32>; 2]),
-    IntArr(Vec<isize>),
-    FloatArr(Vec<f32>),
-    Vector(Vector2<f32>),
-    VectorArr(Vec<Vector2<f32>>),
-    ArrMap(Vec<HashMap<String, VarType>>),
-    Map(HashMap<String, VarType>),
-    SubResource(usize),
-    ExtResource(usize),
-    None(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
