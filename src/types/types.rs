@@ -82,3 +82,39 @@ impl TryFrom<VarType> for Curve {
         }
     }
 }
+
+impl TryFrom<&VarType> for isize {
+    type Error = ();
+
+    fn try_from(value: &VarType) -> Result<Self, Self::Error> {
+        if let VarType::Num(number) = value {
+            Ok(*number)
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl TryFrom<&VarType> for f32 {
+    type Error = ();
+
+    fn try_from(value: &VarType) -> Result<Self, Self::Error> {
+        if let VarType::Float(number) = value {
+            Ok(*number)
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl TryFrom<&VarType> for bool {
+    type Error = ();
+
+    fn try_from(value: &VarType) -> Result<Self, Self::Error> {
+        if let VarType::Bool(boolean) = value {
+            Ok(*boolean)
+        } else {
+            Err(())
+        }
+    }
+}
