@@ -1,11 +1,11 @@
 [package]
 name = "tscn-parser"
-version = "0.5.8"
+version = "0.5.9"
 authors = ["Artjoms Travkovs <atravkovs@gmail.com>"]
 edition = "2018"
 
 [dependencies]
 regex = "1.3"
 indexmap = "1.3"
-nalgebra = "0.19"
+nalgebra = "0.22"
 lazy_static = "1.4"

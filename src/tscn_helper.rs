@@ -379,7 +379,7 @@ impl TscnHelper {
                         0
                     }
                 }
-                wtf => unimplemented!("{}", wtf),
+                _ => {}
             }
         }
 
