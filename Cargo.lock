@@ -272,7 +272,7 @@ dependencies = [
 
 [[package]]
 name = "tscn-parser"
-version = "0.5.10"
+version = "0.5.11"
 dependencies = [
  "indexmap",
  "lazy_static",
